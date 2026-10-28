@@ -7,6 +7,13 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="description" content="Walow AI: مساعد ذكي للمحادثة وتوليد الصور، من تصميم محمد ولو أبو يوسف">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Walow AI">
+<meta property="og:description" content="مساعد ذكي للمحادثة وتوليد الصور. افتحه من الرابط وثبّته على هاتفك.">
+<meta property="og:url" content="https://mohammadwalow-afk.github.io/walow-ai/">
+<meta property="og:image" content="https://mohammadwalow-afk.github.io/walow-ai/icon-512.png">
+<meta name="twitter:card" content="summary">
 <!-- Walow AI © 2026 محمد ولو أبو يوسف. جميع الحقوق محفوظة. ممنوع النسخ أو إعادة النشر أو تغيير اسم المالك دون إذن كتابي. -->
 <title>Walow AI</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap">
@@ -107,6 +114,9 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
 .field input,.field textarea{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%}
 .field input.ltr{direction:ltr;text-align:left}
 .hint{font-size:.85rem;color:var(--muted);margin:0}
+.help{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:.92rem}
+.help ol{margin:6px 0;padding-inline-start:20px}
+.help a{color:var(--accent);font-weight:700}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .hist-item{display:flex;gap:8px;align-items:center}
 .hist-item button.open{flex:1;min-width:0;text-align:start;padding:10px 12px;border:1px solid var(--line);background:var(--bg);border-radius:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -153,6 +163,15 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
 <div class="sheet-wrap" id="setWrap" hidden>
   <div class="sheet" role="dialog" aria-labelledby="setTitle">
     <h2 id="setTitle">الإعدادات</h2>
+    <div id="setHelp" class="help" hidden>
+      <strong>لتشغيل المحادثة (مرة واحدة فقط):</strong>
+      <ol>
+        <li>اضغط <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">فتح صفحة المفتاح</a> وسجّل الدخول بحساب Google.</li>
+        <li>اضغط Create API key ثم انسخ المفتاح.</li>
+        <li>ارجع هنا والصقه في الخانة التالية، ثم اضغط حفظ.</li>
+      </ol>
+      <p class="hint">الصور تعمل بدون مفتاح، فيمكنك تجربتها الآن.</p>
+    </div>
     <div class="field">
       <label for="setKey">مفتاح Gemini API</label>
       <input id="setKey" class="ltr" type="password" autocomplete="off" placeholder="AIza…">
@@ -190,7 +209,7 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
 const API = 'https://generativelanguage.googleapis.com/v1beta';
 const DEFAULTS = {
   key: '',
-  chatModel: 'gemini-3.8-flash',
+  chatModel: 'gemini-3.5-flash-lite',
   imgModel: 'pollinations',
   system: 'أنت مساعد ذكي ودود. أجب بنفس لغة المستخدم، وكن واضحاً ومختصراً ما أمكن.'
 };
@@ -555,6 +574,7 @@ $('#tabImg').addEventListener('click', () => showTab('img'));
 
 /* ---------- الإعدادات ---------- */
 function openSettings() {
+  $('#setHelp').hidden = !!settings.key;
   $('#setKey').value = settings.key;
   $('#setChatModel').value = settings.chatModel;
   $('#setImgModel').value = settings.imgModel;
