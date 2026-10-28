@@ -7,6 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<!-- Walow AI © 2026 محمد ولو أبو يوسف. جميع الحقوق محفوظة. ممنوع النسخ أو إعادة النشر أو تغيير اسم المالك دون إذن كتابي. -->
 <title>Walow AI</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap">
 <style>
@@ -166,10 +167,7 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
       <input id="setImgModel" class="ltr" type="text" autocomplete="off">
       <p class="hint">الافتراضي "pollinations" مجاني وبلا مفتاح. لاستخدام Gemini اكتب gemini-3.1-flash-image (يتطلب تفعيل الفوترة).</p>
     </div>
-    <div class="field">
-      <label for="setSystem">تعليمات المساعد (اختياري)</label>
-      <textarea id="setSystem" rows="3" dir="auto"></textarea>
-    </div>
+    <p class="hint">Walow AI © 2026 محمد ولو أبو يوسف. جميع الحقوق محفوظة.</p>
     <div class="row">
       <button class="primary" id="setSave" type="button">حفظ</button>
       <button class="ghost" id="setClose" type="button">إغلاق</button>
@@ -196,6 +194,8 @@ const DEFAULTS = {
   imgModel: 'pollinations',
   system: 'أنت مساعد ذكي ودود. أجب بنفس لغة المستخدم، وكن واضحاً ومختصراً ما أمكن.'
 };
+// تعليمات ثابتة داخل التطبيق: لا تظهر في الإعدادات ولا يستطيع المستخدم تغييرها
+const BUILT_IN_SYSTEM = 'اسمك Walow AI. هو تطبيق صممه محمد ولو أبو يوسف، ويعمل بنموذج Gemini من Google. أجب بنفس لغة المستخدم، وكن واضحاً ومختصراً ما أمكن.';
 const $ = (s) => document.querySelector(s);
 
 /* ---------- تخزين محلي (localStorage) مع حماية من الأخطاء ---------- */
@@ -265,7 +265,7 @@ function renderChat() {
   const chat = chats.find((x) => x.id === currentId);
   chatLog.innerHTML = '';
   if (!chat || chat.messages.length === 0) {
-    chatLog.innerHTML = '<div class="empty"><strong>اسألني أي شيء</strong>اكتب سؤالك بالعربية أو بأي لغة، وسأجيبك مباشرة.</div>';
+    chatLog.innerHTML = '<div class="empty"><strong>اسألني أي شيء</strong>اكتب سؤالك بالعربية أو بأي لغة، وسأجيبك مباشرة.<small style="display:block;margin-top:14px">صُنع بواسطة محمد ولو أبو يوسف</small></div>';
     return;
   }
   chat.messages.forEach((m) => addBubble(m.role, m.text));
@@ -303,7 +303,7 @@ async function sendChat(text) {
   const history = chat.messages.slice(0, -1).slice(-24)
     .map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
   const body = { contents: history };
-  if (settings.system.trim()) body.systemInstruction = { parts: [{ text: settings.system.trim() }] };
+  body.systemInstruction = { parts: [{ text: BUILT_IN_SYSTEM }] };
 
   controller = new AbortController();
   setBusy(true);
@@ -558,7 +558,6 @@ function openSettings() {
   $('#setKey').value = settings.key;
   $('#setChatModel').value = settings.chatModel;
   $('#setImgModel').value = settings.imgModel;
-  $('#setSystem').value = settings.system;
   $('#setWrap').hidden = false;
 }
 $('#btnSet').addEventListener('click', openSettings);
@@ -567,8 +566,7 @@ $('#setSave').addEventListener('click', () => {
   settings = {
     key: $('#setKey').value.trim(),
     chatModel: $('#setChatModel').value.trim() || DEFAULTS.chatModel,
-    imgModel: $('#setImgModel').value.trim() || DEFAULTS.imgModel,
-    system: $('#setSystem').value
+    imgModel: $('#setImgModel').value.trim() || DEFAULTS.imgModel
   };
   save('walow.settings', settings);
   $('#setWrap').hidden = true;
