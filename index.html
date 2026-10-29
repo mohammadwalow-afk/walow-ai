@@ -93,6 +93,14 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
 }
 .primary:disabled{opacity:.5}
 .ghost{background:transparent;border:1px solid var(--line);border-radius:12px;min-height:44px;padding:0 14px}
+.attach{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--surface);border-top:1px solid var(--line)}
+.attach-list{flex:1;min-width:0;display:flex;gap:10px;overflow-x:auto;padding:6px 4px}
+.attach-item{position:relative;flex:0 0 auto}
+.attach-item img{display:block;width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.attach-item button{position:absolute;top:-6px;inset-inline-start:-6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--danger);color:#fff;font-size:12px;line-height:1;padding:0}
+.msg .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.msg .thumb{display:block;max-width:100%;max-height:170px;border-radius:10px}
+.thumb-note{opacity:.85;font-size:.9rem;margin-bottom:4px}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:12px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:0}
@@ -142,7 +150,13 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
   <!-- تبويب المحادثة -->
   <section class="view" id="viewChat">
     <div class="scroll" id="chatLog"></div>
+    <div class="attach" id="attachPreview" hidden>
+      <div class="attach-list" id="attachList"></div>
+      <button type="button" class="ghost" id="btnRemoveImg" aria-label="إزالة كل الصور">إزالة الكل</button>
+    </div>
     <form class="composer" id="chatForm">
+      <button type="button" class="icon-btn" id="btnAttach" aria-label="إرفاق صورة" title="إرفاق صورة">📎</button>
+      <input type="file" id="fileInput" accept="image/*" multiple hidden>
       <textarea id="chatInput" rows="1" placeholder="اكتب سؤالك هنا…" dir="auto"></textarea>
       <button type="button" class="ghost" id="btnStop" hidden>إيقاف</button>
       <button type="button" class="primary" id="btnSend">إرسال</button>
@@ -232,6 +246,13 @@ let currentId = load('walow.current', null);
 let busy = false;
 let controller = null;
 
+// نحفظ المحادثات بدون بيانات الصور (تبقى في الذاكرة طوال الجلسة فقط) كي لا تمتلئ ذاكرة الهاتف
+function persistChats() {
+  save('walow.chats', chats.map((c) => Object.assign({}, c, {
+    messages: c.messages.map((m) => { const copy = Object.assign({}, m); delete copy.imgs; return copy; })
+  })));
+}
+
 function currentChat() {
   let c = chats.find((x) => x.id === currentId);
   if (!c) {
@@ -287,15 +308,38 @@ function renderChat() {
     chatLog.innerHTML = '<div class="empty"><strong>اسألني أي شيء</strong>اكتب سؤالك بالعربية أو بأي لغة، وسأجيبك مباشرة.<small style="display:block;margin-top:14px">صُنع بواسطة محمد ولو أبو يوسف</small></div>';
     return;
   }
-  chat.messages.forEach((m) => addBubble(m.role, m.text));
+  chat.messages.forEach((m) => addBubble(m.role, m.text, '', m));
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function addBubble(role, text, extraClass) {
+function addBubble(role, text, extraClass, m) {
   const el = document.createElement('div');
   el.className = 'msg ' + (role === 'user' ? 'user' : 'bot') + (extraClass ? ' ' + extraClass : '');
   el.dir = 'auto';
-  if (role === 'user') el.textContent = text; else el.innerHTML = md(text);
+  if (role === 'user') {
+    if (m && m.imgs && m.imgs.length) {
+      const box = document.createElement('div');
+      box.className = 'thumbs';
+      m.imgs.forEach((x) => {
+        const im = new Image();
+        im.className = 'thumb';
+        im.alt = 'صورة مرفقة';
+        im.src = 'data:' + x.mime + ';base64,' + x.data;
+        box.appendChild(im);
+      });
+      el.appendChild(box);
+    } else if (m && m.hadImg) {
+      const note = document.createElement('div');
+      note.className = 'thumb-note';
+      note.textContent = '🖼️ ' + (m.hadImg > 1 ? m.hadImg + ' صور مرفقة' : 'صورة مرفقة');
+      el.appendChild(note);
+    }
+    const t = document.createElement('div');
+    t.textContent = text;
+    el.appendChild(t);
+  } else {
+    el.innerHTML = md(text);
+  }
   chatLog.appendChild(el);
   return el;
 }
@@ -306,11 +350,12 @@ function setBusy(v) {
   $('#btnStop').hidden = !v;
 }
 
-async function sendChat(text) {
+async function sendChat(text, images) {
   if (busy || !text || needKey()) return;
   const chat = currentChat();
   if (chat.messages.length === 0) chat.title = text.slice(0, 40);
-  chat.messages.push({ role: 'user', text });
+  const imgs = images && images.length ? images : null;
+  chat.messages.push({ role: 'user', text, imgs, hadImg: imgs ? imgs.length : 0 });
   const reply = { role: 'model', text: '' };
   chat.messages.push(reply);
   renderChat();
@@ -319,8 +364,23 @@ async function sendChat(text) {
   bubble.textContent = '…';
 
   // نرسل آخر 24 رسالة فقط ولا نرسل الرد الفارغ الحالي
-  const history = chat.messages.slice(0, -1).slice(-24)
-    .map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
+  // نرسل صور آخر الرسائل بحد أقصى 12 صورة في الطلب الواحد (لتخفيف الحجم)، والأقدم تتحول إلى ملاحظة نصية
+  const recent = chat.messages.slice(0, -1).slice(-24);
+  let budget = 12;
+  const history = [];
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const m = recent[i];
+    const parts = [];
+    const n = m.imgs ? m.imgs.length : 0;
+    if (n && n <= budget) {
+      m.imgs.forEach((x) => parts.push({ inlineData: { mimeType: x.mime, data: x.data } }));
+      budget -= n;
+    } else if (m.hadImg) {
+      parts.push({ text: '[صور أُرفقت سابقاً ولم تعد متاحة]' });
+    }
+    parts.push({ text: m.text });
+    history.unshift({ role: m.role, parts });
+  }
   const body = { contents: history };
   body.systemInstruction = { parts: [{ text: BUILT_IN_SYSTEM }] };
 
@@ -379,20 +439,93 @@ async function sendChat(text) {
         ? 'لا يوجد اتصال بالإنترنت أو تم حظر الطلب.' : err.message;
     }
   } finally {
-    save('walow.chats', chats);
+    persistChats();
     save('walow.current', currentId);
     setBusy(false);
     controller = null;
   }
 }
 
+/* ---------- إرفاق صورة بالسؤال ---------- */
+const MAX_IMAGES = 10;
+let pendingImages = []; // [{ mime, data }] بعد التصغير
+
+// نصغّر الصورة (حتى 1280 بكسل) ونحوّلها JPEG لتسريع الإرسال وتقليل الحجم
+function prepareImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || file.type.indexOf('image/') !== 0) { reject(new Error('هذا الملف ليس صورة.')); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve({ mime: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.82).split(',')[1] });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('تعذّر فتح الصورة. جرّب صورة أخرى.')); };
+    img.src = url;
+  });
+}
+function renderAttach() {
+  const list = $('#attachList');
+  list.innerHTML = '';
+  pendingImages.forEach((x, i) => {
+    const item = document.createElement('div');
+    item.className = 'attach-item';
+    const im = new Image();
+    im.alt = 'صورة ' + (i + 1);
+    im.src = 'data:' + x.mime + ';base64,' + x.data;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = '✕';
+    del.setAttribute('aria-label', 'إزالة الصورة ' + (i + 1));
+    del.addEventListener('click', () => { pendingImages.splice(i, 1); renderAttach(); });
+    item.append(im, del);
+    list.appendChild(item);
+  });
+  $('#attachPreview').hidden = pendingImages.length === 0;
+}
+function clearAttach() {
+  pendingImages = [];
+  renderAttach();
+}
+$('#btnAttach').addEventListener('click', () => $('#fileInput').click());
+$('#btnRemoveImg').addEventListener('click', clearAttach);
+$('#fileInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (!files.length) return;
+  const room = MAX_IMAGES - pendingImages.length;
+  const notes = [];
+  if (files.length > room) notes.push('الحد الأقصى ' + MAX_IMAGES + ' صور في السؤال الواحد، فأُضيفت الأولى فقط.');
+  for (const f of files.slice(0, Math.max(0, room))) {
+    try { pendingImages.push(await prepareImage(f)); }
+    catch (err) { notes.push(err.message); }
+  }
+  renderAttach();
+  if (notes.length) {
+    addBubble('model', notes.join(' '), 'err');
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+});
+
 $('#btnSend').addEventListener('click', () => {
   const input = $('#chatInput');
-  const text = input.value.trim();
-  if (!text) return;
+  let text = input.value.trim();
+  const images = pendingImages.slice();
+  if (!text && !images.length) return;
+  if (needKey()) return; // يفتح الإعدادات دون أن نفقد النص أو الصور
+  if (!text) text = images.length > 1 ? 'اشرح لي ما في هذه الصور.' : 'اشرح لي ما في هذه الصورة.';
   input.value = '';
   input.style.height = 'auto';
-  sendChat(text);
+  clearAttach();
+  sendChat(text, images);
 });
 $('#btnStop').addEventListener('click', () => { if (controller) controller.abort(); });
 $('#chatInput').addEventListener('input', autoGrow);
@@ -456,6 +589,31 @@ async function showPollinations(prompt, card) {
   }
 }
 
+// حفظ الصورة في الهاتف: ننزّلها كملف، وإن منع المتصفح ذلك نفتحها في صفحة ليضغط المستخدم مطولاً عليها
+async function saveImage(url, btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'جارٍ الحفظ…';
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('download failed');
+    const blob = await res.blob();
+    const obj = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = obj;
+    a.download = 'walow-ai-' + Date.now() + '.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(obj), 15000);
+    btn.textContent = 'تم الحفظ، راجع التنزيلات';
+  } catch (e) {
+    window.open(url, '_blank');
+    btn.textContent = 'اضغط مطولاً على الصورة ثم تنزيل';
+  }
+  setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 4000);
+}
+
 function tryPollinations(prompt, englishPrompt, card, isLast) {
   return new Promise((resolve) => {
     const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(englishPrompt) +
@@ -467,10 +625,11 @@ function tryPollinations(prompt, englishPrompt, card, isLast) {
       const meta = document.createElement('div');
       meta.className = 'meta';
       const p = document.createElement('p'); p.dir = 'auto'; p.textContent = prompt;
-      const a = document.createElement('a');
-      a.href = url; a.target = '_blank'; a.rel = 'noopener';
-      a.className = 'ghost'; a.textContent = 'فتح الصورة للحفظ';
-      a.style.cssText = 'display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit';
+      const a = document.createElement('button');
+      a.type = 'button';
+      a.className = 'ghost'; a.textContent = 'حفظ الصورة';
+      a.style.cssText = 'width:100%';
+      a.addEventListener('click', () => saveImage(url, a));
       meta.append(p, a);
       card.append(img, meta);
       resolve(true);
@@ -617,7 +776,7 @@ function openHistory() {
       if (del.dataset.sure) {
         chats = chats.filter((x) => x.id !== c.id);
         if (currentId === c.id) currentId = null;
-        save('walow.chats', chats); save('walow.current', currentId);
+        persistChats(); save('walow.current', currentId);
         openHistory(); renderChat();
       } else {
         del.dataset.sure = '1'; del.textContent = 'تأكيد';
