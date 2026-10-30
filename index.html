@@ -81,6 +81,8 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
 .msg-tools{display:flex;gap:6px;margin-top:8px}
 .msg-tools button{background:transparent;border:1px solid var(--line);border-radius:8px;min-height:32px;padding:0 10px;color:var(--muted);font-size:.85rem}
 .msg-tools button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+.sites{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 16px;border-top:1px solid var(--line);background:var(--surface);font-size:.85rem;color:var(--muted)}
+.sites button{background:transparent;border:1px solid var(--line);border-radius:8px;min-height:36px;padding:0 10px;color:var(--ink);font-size:.85rem}
 .vstat{padding:6px 16px;font-size:.88rem;color:var(--muted);background:var(--surface);border-top:1px solid var(--line)}
 .vstat.err{color:var(--danger)}
 .icon-btn.rec{background:var(--danger);border-color:var(--danger);color:#fff;animation:pulse 1.2s infinite}
@@ -178,6 +180,13 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
   <!-- تبويب الصور -->
   <section class="view" id="viewImg" hidden>
     <div class="scroll" id="imgLog"></div>
+    <div class="sites" id="sites">
+      <span>جرّب في موقع آخر (يُنسخ وصفك تلقائياً):</span>
+      <button type="button" data-url="https://leonardo.ai">Leonardo.ai</button>
+      <button type="button" data-url="https://designer.microsoft.com">Microsoft Designer</button>
+      <button type="button" data-url="https://civitai.com">Civitai</button>
+      <span id="sitesNote" hidden></span>
+    </div>
     <form class="composer" id="imgForm">
       <textarea id="imgInput" rows="1" placeholder="صف الصورة التي تريدها…" dir="auto"></textarea>
       <button type="button" class="primary" id="btnGen">إنشاء</button>
@@ -799,7 +808,8 @@ async function showPollinations(prompt, card) {
   // نحاول حتى 3 مرات؛ بين كل محاولة وأخرى ننتظر انتهاء مهلة الخدمة
   for (let attempt = 1; attempt <= 3; attempt++) {
     await waitTurn(card, attempt === 1 ? 'في الانتظار' : 'إعادة المحاولة بعد');
-    const ok = await tryPollinations(prompt, englishPrompt, card, attempt === 3);
+    // المحاولة الأولى بالنموذج الافتراضي، والثانية والثالثة بنموذجين بديلين
+    const ok = await tryPollinations(prompt, englishPrompt, card, attempt === 3, [null, 'turbo', 'flux'][attempt - 1]);
     if (ok) return;
   }
 }
@@ -829,10 +839,10 @@ async function saveImage(url, btn) {
   setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 4000);
 }
 
-function tryPollinations(prompt, englishPrompt, card, isLast) {
+function tryPollinations(prompt, englishPrompt, card, isLast, model) {
   return new Promise((resolve) => {
     const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(englishPrompt) +
-      '?width=768&height=768&nologo=true&seed=' + Math.floor(Math.random() * 1e6);
+      '?width=768&height=768&nologo=true&seed=' + Math.floor(Math.random() * 1e6) + (model ? '&model=' + model : '');
     const img = new Image();
     img.alt = prompt;
     img.onload = () => {
@@ -865,7 +875,9 @@ function tryPollinations(prompt, englishPrompt, card, isLast) {
   });
 }
 
+let lastImgPrompt = '';
 async function generateImage(prompt) {
+  lastImgPrompt = prompt;
   const usePol = settings.imgModel.trim().toLowerCase() === 'pollinations';
   if (imgBusy || !prompt || (!usePol && needKey())) return;
   imgBusy = true;
@@ -933,6 +945,17 @@ $('#btnGen').addEventListener('click', () => {
   input.value = '';
   input.style.height = 'auto';
   generateImage(text);
+});
+
+document.querySelectorAll('#sites button').forEach((b) => {
+  b.addEventListener('click', () => {
+    const text = ($('#imgInput').value.trim() || lastImgPrompt || '').trim();
+    window.open(b.dataset.url, '_blank', 'noopener');
+    const note = $('#sitesNote');
+    if (!text) { note.textContent = 'اكتب وصفاً أولاً ليُنسخ.'; note.hidden = false; return; }
+    const done = () => { note.textContent = '✓ نُسخ الوصف، الصقه في الموقع'; note.hidden = false; setTimeout(() => { note.hidden = true; }, 5000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => {});
+  });
 });
 
 /* ---------- التبويبات ---------- */
