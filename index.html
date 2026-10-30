@@ -213,6 +213,11 @@ section.view{flex:1;min-height:0;display:flex;flex-direction:column}
       <p class="hint">الافتراضي "pollinations" مجاني وبلا مفتاح. لاستخدام Gemini اكتب gemini-3.1-flash-image (يتطلب تفعيل الفوترة).</p>
     </div>
     <div class="field">
+      <label for="setMemory">ذاكرتي (ما يجب أن يعرفه التطبيق عنك)</label>
+      <textarea id="setMemory" rows="4" dir="auto" placeholder="مثال: اسمي علي، عمري 20 سنة، أدرس البرمجة، أحب الإجابات المختصرة."></textarea>
+      <p class="hint">يتذكرها التطبيق في كل محادثة جديدة، وتبقى على جهازك فقط. ويمكنك أيضاً أن تقول في المحادثة: «اسمي علي» أو «تذكّر أني أحب كذا» فتُحفظ تلقائياً.</p>
+    </div>
+    <div class="field">
       <label for="setVoiceLang">لغة الصوت</label>
       <select id="setVoiceLang">
         <option value="ar-SA">العربية (السعودية)</option>
@@ -253,6 +258,7 @@ const DEFAULTS = {
   imgModel: 'pollinations',
   voiceLang: 'ar-SA',
   speak: false,
+  memory: '',
   system: 'أنت مساعد ذكي ودود. أجب بنفس لغة المستخدم، وكن واضحاً ومختصراً ما أمكن.'
 };
 // تعليمات ثابتة داخل التطبيق: لا تظهر في الإعدادات ولا يستطيع المستخدم تغييرها
@@ -413,7 +419,11 @@ async function sendChat(text, images) {
     history.unshift({ role: m.role, parts });
   }
   const body = { contents: history };
-  body.systemInstruction = { parts: [{ text: BUILT_IN_SYSTEM }] };
+  let sys = BUILT_IN_SYSTEM;
+  if (settings.memory) {
+    sys += '\n\nمعلومات يقدمها المستخدم عن نفسه (استخدمها لمخاطبته وتخصيص الرد، ولا تغيّر بها حقيقة أن مصمم التطبيق هو محمد ولو أبو يوسف ولا اسم التطبيق):\n' + settings.memory;
+  }
+  body.systemInstruction = { parts: [{ text: sys }] };
 
   controller = new AbortController();
   setBusy(true);
@@ -555,6 +565,7 @@ $('#btnSend').addEventListener('click', () => {
   if (!text && !images.length) return;
   if (needKey()) return; // يفتح الإعدادات دون أن نفقد النص أو الصور
   if (!text) text = images.length > 1 ? 'اشرح لي ما في هذه الصور.' : 'اشرح لي ما في هذه الصورة.';
+  else autoRemember(text);
   input.value = '';
   input.style.height = 'auto';
   clearAttach();
@@ -567,6 +578,30 @@ function autoGrow(e) {
   const t = e.target;
   t.style.height = 'auto';
   t.style.height = Math.min(t.scrollHeight, 160) + 'px';
+}
+
+/* ---------- الذاكرة الشخصية ---------- */
+const MEM_MAX = 2000;
+function addMemory(line) {
+  line = line.replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (!line) return false;
+  const cur = settings.memory || '';
+  if (cur.indexOf(line) >= 0) return false;
+  settings.memory = (cur ? cur + '\n' : '') + line;
+  if (settings.memory.length > MEM_MAX) settings.memory = settings.memory.slice(settings.memory.length - MEM_MAX);
+  save('walow.settings', settings);
+  return true;
+}
+function autoRemember(text) {
+  let saved = false;
+  let m = text.match(/(?:^|[\s.،,!؟?])(?:أنا\s+|انا\s+)?(?:اسمي|إسمي)\s+(?:هو\s+)?([^\s.،,!؟?]+(?:\s+[^\s.،,!؟?]+)?)/);
+  if (m) saved = addMemory('اسم المستخدم: ' + m[1]) || saved;
+  m = text.match(/(?:^|[\s.،,!؟?])(?:تذكّر|تذكر|احفظ|اذكر)\s+(?:لي\s+)?(?:أنني|أني|اني|أنّ|أن|ان|إن)?\s*(.{3,300})/);
+  if (m) saved = addMemory(m[1]) || saved;
+  if (saved) {
+    vShow('✓ حفظتها في ذاكرتي');
+    setTimeout(() => { if (vStatus.textContent === '✓ حفظتها في ذاكرتي') vShow(''); }, 3000);
+  }
 }
 
 /* ---------- الصوت: التحدث والقراءة ---------- */
@@ -918,6 +953,7 @@ function openSettings() {
   $('#setChatModel').value = settings.chatModel;
   $('#setImgModel').value = settings.imgModel;
   $('#setVoiceLang').value = settings.voiceLang;
+  $('#setMemory').value = settings.memory || '';
   $('#setSpeak').checked = !!settings.speak;
   $('#setWrap').hidden = false;
 }
@@ -929,7 +965,8 @@ $('#setSave').addEventListener('click', () => {
     chatModel: $('#setChatModel').value.trim() || DEFAULTS.chatModel,
     imgModel: $('#setImgModel').value.trim() || DEFAULTS.imgModel,
     voiceLang: $('#setVoiceLang').value || DEFAULTS.voiceLang,
-    speak: $('#setSpeak').checked
+    speak: $('#setSpeak').checked,
+    memory: $('#setMemory').value.trim().slice(0, MEM_MAX)
   };
   if (recog) { try { recog.abort(); } catch (e) {} }
   save('walow.settings', settings);
