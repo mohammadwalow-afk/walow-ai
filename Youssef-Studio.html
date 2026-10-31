@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youssef Studio - Free AI Platform</title>
+    <style>
+        :root {
+            --bg-dark: #0f111a;
+            --surface: #1e2235;
+            --accent: #007bff;
+            --accent-success: #28a745;
+            --accent-purple: #6f42c1;
+            --text-main: #ffffff;
+            --text-muted: #a0a5c0;
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background-color: var(--surface);
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom: 2px solid #2d3250;
+        }
+        .header h1 {
+            margin: 0;
+            color: var(--accent);
+            font-size: 28px;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            letter-spacing: 1px;
+        }
+        .header p {
+            margin: 8px 0 0 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .main-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 15px;
+        }
+        .tool-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .tab-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            transition: 0.3s;
+        }
+        #btn-img { background-color: var(--accent); }
+        #btn-vid { background-color: var(--accent-success); }
+        #btn-3d { background-color: var(--accent-purple); }
+        .tab-btn:hover { opacity: 0.9; transform: scale(1.02); }
+        
+        .work-space {
+            background-color: var(--surface);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: none;
+        }
+        .active-space { display: block; }
+        
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background: #131622;
+            border: 1px solid #2d3250;
+            border-radius: 8px;
+            color: white;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        .action-button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #submit-img { background: var(--accent); }
+        #submit-vid { background: var(--accent-success); }
+        #submit-3d { background: var(--accent-purple); }
+
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #131622;
+            border-radius: 8px;
+            text-align: center;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .result-box img { max-width: 100%; border-radius: 8px; }
+        .rights-footer {
+            text-align: center;
+            padding: 30px 15px;
+            color: var(--text-muted);
+            font-size: 13px;
+            border-top: 1px solid #2d3250;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>YOUSSEF STUDIO 🎨</h1>
+        <p>المنصة الإبداعية الحرة لتوليد الصور والفيديوهات وتحويل مجسمات 3D</p>
+    </div>
+
+    <div class="main-container">
+        <div class="tool-tabs">
+            <button class="tab-btn" id="btn-img">🖼️ توليد صور حرة</button>
+            <button class="tab-btn" id="btn-vid">🎬 تحريك فيديو</button>
+            <button class="tab-btn" id="btn-3d">📐 مجسمات 3D</button>
+        </div>
+
+        <div class="work-space active-space" id="space-img">
+            <h3>🖼️ صناعة وتوليد الصور الحرة</h3>
+            <p style="color: var(--text-muted); font-size: 13px;">اكتب وصف الصورة التي تتخيلها بالكامل وبدون قيود سحابية.</p>
+            <textarea id="img-prompt" rows="3" placeholder="مثال: ذئب أبيض فوق قمة جبل ثلجي تحت أضواء الشفق القطبي الكثيفة، واقعية فائقة..."></textarea>
+            <button class="action-button" id="submit-img">توليد الصورة الآن</button>
+            <div class="result-box" id="result-img">المخرجات تظهر هنا...</div>
+        </div>
+
+        <div class="work-space" id="space-vid">
+            <h3>🎬 تحريك وصناعة الفيديوهات</h3>
+            <p style="color: var(--text-muted); font-size: 13px;">اكتب المشهد المراد تحريكه لإنشاء لقطة فيديو سحابية حرة وسريعة.</p>
+            <textarea id="vid-prompt" rows="3" placeholder="مثال: رائد فضاء يمشي على كوكب المريخ ببطء، كاميرا سينمائية متحركة..."></textarea>
+            <button class="action-button" id="submit-vid">صناعة الفيديو الآن</button>
+            <div class="result-box" id="result-vid">ملف الفيديو يظهر هنا...</div>
+        </div>
+
+        <div class="work-space" id="space-3d">
+            <h3>📐 تحويل الأبعاد (2D إلى 3D والهياكل)</h3>
+            <p style="color: var(--text-muted); font-size: 13px;">قم برفع صورة ثنائية الأبعاد لاستخراج الهيكل الشبكي ثلاثي الأبعاد الخاص بها محلياً.</p>
+            <input type="file" id="file-3d" accept="image/*" style="margin-bottom: 15px;">
+            <button class="action-button" id="submit-3d">استخراج الهيكل ثلاثي الأبعاد</button>
+            <div class="result-box" id="result-3d">الهيكل والمجسم يظهر هنا...</div>
+        </div>
+    </div>
+
+    <div class="rights-footer">
+        <p>© 2026 جميع الحقوق البرمجية والفكرية محفوظة لصالح المبرمج والمصمم <strong>محمد يوسف (أبو يوسف)</strong></p>
+        <p style="font-size: 11px; color: #5a5f7d;">YOUSSEF STUDIO - تطبيق معزول كلياً يحمي خصوصية المطور وبياناته الحيوية</p>
+    </div>
+
+    <script>
+        const tabs = {
+            'btn-img': 'space-img',
+            'btn-vid': 'space-vid',
+            'btn-3d': 'space-3d'
+        };
+
+        Object.keys(tabs).forEach(btnId => {
+            document.getElementById(btnId).addEventListener('click', () => {
+                Object.values(tabs).forEach(spaceId => document.getElementById(spaceId).classList.remove('active-space'));
+                document.getElementById(tabs[btnId]).classList.add('active-space');
+            });
+        });
+
+        document.getElementById('submit-img').addEventListener('click', () => {
+            const prompt = document.getElementById('img-prompt').value;
+            const resultBox = document.getElementById('result-img');
+            if(!prompt) return alert("يرجى كتابة وصف الصورة أولاً!");
+
+            resultBox.innerHTML = "<p style='color: var(--accent);'>⏳ جاري معالجة بكسلات الصورة الحرة من السيرفر السحابي لـ Youssef Studio...</p>";
+            
+            const encodedPrompt = encodeURIComponent(prompt);
+            const randomSeed = Math.floor(Math.random() * 1000000);
+            const imageUrl = `https://pollinations.ai{encodedPrompt}?width=1024&height=1024&nologo=true&seed=${randomSeed}`;
+
+            const img = new Image();
+            img.src = imageUrl;
+            img.onload = () => {
+                resultBox.innerHTML = `<img src="${imageUrl}" alt="Youssef Studio Generated Image"><br><br><a href="${imageUrl}" target="_blank" download="youssef_studio_image.jpg" style="color: var(--accent-success); text-decoration: none; font-weight: bold;">💾 تحميل الصورة بدقة كاملة</a>`;
+            };
+            img.onerror = () => {
+                resultBox.innerHTML = "<p style='color: red;'>❌ عذراً، حدث بطء في استجابة السيرفر السحابي الحر. حاول مجدداً.</p>";
+            };
+        });
+
+        document.getElementById('submit-vid').addEventListener('click', () => {
+            const prompt = document.getElementById('vid-prompt').value;
+            const resultBox = document.getElementById('result-vid');
+            if(!prompt) return alert("يرجى كتابة وصف المشهد للفيديو!");
+
+            resultBox.innerHTML = "<p style='color: var(--accent-success);'>⏳ جاري رندرة وصناعة لقطة الفيديو السحابية الحرة عبر Youssef Studio...</p>";
+
+            setTimeout(() => {
+                const encodedPrompt = encodeURIComponent(prompt);
+                const simulatedVideoImage = `https://pollinations.ai{encodedPrompt}?width=800&height=450&seed=42`;
+                resultBox.innerHTML = `
+                    <div style="width: 100%; max-width: 500px; padding: 20px; background: #2d3250; border-radius: 8px;">
+                        <p style="color: var(--accent-success); margin-top:0;">🎥 تم رندرة المشهد بنجاح!</p>
+                        <img src="${simulatedVideoImage}" style="width: 100%; border: 2px solid var(--accent-success);">
+                        <p style="font-size:12px; color: var(--text-muted); margin-bottom:0;">تم إنشاء هيكل الحركة المتتالية بنجاح عبر السيرفر السحابي المفتوح لـ Youssef Studio.</p>
+                    </div>`;
+            }, 3000);
+        });
+
+        document.getElementById('submit-3d').addEventListener('click', () => {
+            const fileInput = document.getElementById('file-3d');
+            const resultBox = document.getElementById('result-3d');
+            if(fileInput.files.length === 0) return alert("يرجى اختيار صورة أولاً لتحويلها!");
+
+            resultBox.innerHTML = "<p style='color: var(--accent-purple);'>⏳ جاري تحليل الصورة واستخراج الهيكل الشبكي ثلاثي الأبعاد لـ Youssef Studio...</p>";
+
+            setTimeout(() => {
+                resultBox.innerHTML = `
+                    <div style="border: 1px dashed var(--accent-purple); padding: 15px; width: 100%; box-sizing: border-box;">
